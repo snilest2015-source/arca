@@ -1,0 +1,960 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Укрупнительная сборка</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Layout: one engineering drawing board (canvas) under a header strip with a three-step bar; hold-buttons sit under the board, instructions appear as a hard-shadow card. */
+:root{
+  --paper:#e6ecf0;
+  --panel:#d7e0e6;
+  --ink:#10202b;
+  --line:#2e4a5e;
+  --muted:#566f80;
+  --accent:#d8371b;
+  --on-accent:#ffffff;
+  --warn:#e3a400;
+  --ok:#238a5f;
+  --ground:#c4d1da;
+  --scrim:rgba(230,236,240,.9);
+  --font:'Oswald','Arial Narrow','Helvetica Neue',Arial,sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#0d1922;--panel:#162733;--ink:#e7eff4;--line:#86a9bf;--muted:#8aa1b0;
+    --accent:#ff6a47;--on-accent:#1a0a05;--warn:#f0b429;--ok:#3fbf88;--ground:#1a2f3e;--scrim:rgba(13,25,34,.88);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0d1922;--panel:#162733;--ink:#e7eff4;--line:#86a9bf;--muted:#8aa1b0;
+  --accent:#ff6a47;--on-accent:#1a0a05;--warn:#f0b429;--ok:#3fbf88;--ground:#1a2f3e;--scrim:rgba(13,25,34,.88);
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;background:var(--paper);color:var(--ink);font-family:var(--font);font-size:16px;line-height:1.35;
+  padding-block:14px 28px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));
+  padding-right:max(16px,env(safe-area-inset-right,0px));
+}
+.wrap{max-width:1080px;margin:0 auto;display:flex;flex-direction:column;gap:12px}
+.top{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:12px}
+.brand{min-width:0}
+.tag{margin:0 0 4px;font-size:12px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--accent)}
+h1{margin:0;font-size:clamp(28px,5.5vw,46px);line-height:1;font-weight:700;letter-spacing:.01em;text-transform:uppercase;text-wrap:balance}
+.hud{display:flex;flex-wrap:wrap;gap:8px 20px}
+.hud>div{display:flex;flex-direction:column;gap:3px;min-width:0}
+.hud .l{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.hud .v{font-size:22px;font-weight:600;line-height:22px;font-variant-numeric:tabular-nums}
+.bolts{display:flex;gap:5px;align-items:center;height:22px}
+.bolt{width:16px;height:18px;background:var(--ink);clip-path:polygon(25% 0,75% 0,100% 50%,75% 100%,25% 100%,0 50%)}
+.bolt.lost{background:var(--muted);opacity:.3}
+.steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border:2px solid var(--ink)}
+.step{display:flex;align-items:center;gap:8px;min-width:0;padding:8px 10px;font-size:13px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);border-right:2px solid var(--ink)}
+.step:last-child{border-right:0}
+.step b{flex:none;display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border:2px solid currentColor;font-size:13px;line-height:1}
+.step[data-s="now"]{background:var(--ink);color:var(--paper)}
+.step[data-s="done"]{color:var(--ink)}
+.step[data-s="done"] b{background:var(--ok);border-color:var(--ok);color:var(--paper)}
+.step .short{display:none}
+.board{position:relative;border:2px solid var(--ink);background:var(--panel)}
+canvas{display:block;width:100%;aspect-ratio:1000/640;touch-action:none}
+.toast{position:absolute;left:50%;top:40%;transform:translateX(-50%);max-width:90%;padding:8px 14px;background:var(--ink);color:var(--paper);font-size:16px;font-weight:500;letter-spacing:.05em;text-transform:uppercase;text-align:center;pointer-events:none;opacity:0;transition:opacity .2s}
+.toast.show{opacity:1}
+.controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px}
+.btn{
+  display:flex;align-items:center;justify-content:center;gap:10px;min-height:64px;padding:10px 16px;
+  font-family:var(--font);font-size:18px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--ink);background:var(--panel);border:2px solid var(--ink);border-radius:2px;cursor:pointer;
+  touch-action:none;user-select:none;-webkit-user-select:none;
+}
+.btn.on,.btn:active{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.btn.primary{background:var(--ink);color:var(--paper);touch-action:manipulation}
+.btn:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+kbd{font:500 12px var(--font);padding:1px 6px;border:1px solid currentColor;letter-spacing:.06em;opacity:.8}
+.hint{margin:0;min-height:2.7em;font-size:17px;letter-spacing:.02em}
+.overlay{
+  position:fixed;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;overflow:auto;
+  padding-block:16px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));
+  padding-right:max(16px,env(safe-area-inset-right,0px));
+  background:var(--scrim);
+}
+.card{width:100%;max-width:540px;display:flex;flex-direction:column;gap:12px;padding:20px 22px;background:var(--paper);border:2px solid var(--ink);box-shadow:6px 6px 0 var(--accent)}
+.card .kicker{margin:0;font-size:13px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--accent)}
+.card h2{margin:0;font-size:clamp(28px,7vw,44px);line-height:1.02;font-weight:700;text-transform:uppercase;text-wrap:balance}
+.card p{margin:0;font-size:18px;font-weight:300;max-width:62ch}
+.card .meta{font-size:15px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+@media (max-width:560px){
+  .step .full{display:none}.step .short{display:inline}
+  .step{padding:8px 8px;font-size:12px;gap:6px}
+  .hud{gap:6px 16px;width:100%;justify-content:space-between}
+  .btn{font-size:16px}
+}
+@media (prefers-reduced-motion:reduce){.toast{transition:none}}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <p class="tag">В. Г. Шухов · игра-конструктор</p>
+      <h1>Укрупнительная сборка</h1>
+    </div>
+    <div class="hud" aria-live="off">
+      <div><span class="l">Этап</span><span class="v" id="hudStage">1 / 3</span></div>
+      <div><span class="l">Запас прочности</span><span class="bolts" id="hudBolts"><i class="bolt"></i><i class="bolt"></i><i class="bolt"></i></span></div>
+      <div><span class="l">Ошибки</span><span class="v" id="hudMist">0</span></div>
+      <div><span class="l">Очки</span><span class="v" id="hudScore">0</span></div>
+      <div><span class="l">Время</span><span class="v" id="hudTime">0:00</span></div>
+    </div>
+  </header>
+
+  <div class="steps" id="steps">
+    <div class="step" data-s="now"><b>1</b><span class="full">Сборка на земле</span><span class="short">Сборка</span></div>
+    <div class="step" data-s="todo"><b>2</b><span class="full">Перевод в вертикаль</span><span class="short">Вертикаль</span></div>
+    <div class="step" data-s="todo"><b>3</b><span class="full">Подъём мачтами</span><span class="short">Мачты</span></div>
+  </div>
+
+  <div class="board">
+    <canvas id="cv" role="img" aria-label="Чертёж: две половинки арки, мачты на рельсах и лебёдка"></canvas>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  </div>
+
+  <div class="controls" id="controls" hidden>
+    <button class="btn" id="btnPull" type="button" hidden>Тянуть лебёдку <kbd>Пробел</kbd></button>
+    <button class="btn" id="btnL" type="button" hidden>Левая мачта <kbd>A</kbd></button>
+    <button class="btn" id="btnR" type="button" hidden>Правая мачта <kbd>L</kbd></button>
+    <button class="btn primary" id="btnPin" type="button" hidden>Вставить штифт <kbd>Пробел</kbd></button>
+  </div>
+
+  <p class="hint" id="hint"></p>
+</div>
+
+<div class="overlay" id="ov" role="dialog" aria-modal="true" aria-labelledby="ovTitle">
+  <div class="card">
+    <p class="kicker" id="ovKicker"></p>
+    <h2 id="ovTitle"></h2>
+    <p id="ovText"></p>
+    <p class="meta" id="ovMeta" hidden></p>
+    <button class="btn primary" id="ovBtn" type="button"></button>
+  </div>
+</div>
+
+<script>
+(function(){
+'use strict';
+var $=function(id){return document.getElementById(id);};
+var cv=$('cv'), ctx=cv.getContext('2d');
+var W=1000,H=640,TAU=Math.PI*2;
+var RM=!!(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches);
+var scale=1;
+
+function resize(){
+  var r=cv.getBoundingClientRect();
+  var dpr=Math.min(window.devicePixelRatio||1,2);
+  var w=Math.max(1,Math.round(r.width*dpr));
+  if(cv.width!==w){cv.width=w;cv.height=Math.round(w*H/W);}
+  scale=cv.width/W;
+}
+if(window.ResizeObserver){new ResizeObserver(resize).observe(cv);}
+window.addEventListener('resize',resize);
+resize();
+
+/* ---------- theme colours read from CSS tokens ---------- */
+var C={};
+function readTheme(){
+  var s=getComputedStyle(document.documentElement);
+  function g(n){return s.getPropertyValue(n).trim();}
+  C={paper:g('--paper'),panel:g('--panel'),ink:g('--ink'),line:g('--line'),muted:g('--muted'),accent:g('--accent'),warn:g('--warn'),ok:g('--ok'),ground:g('--ground')};
+}
+readTheme();
+new MutationObserver(readTheme).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+if(window.matchMedia){
+  var mq=matchMedia('(prefers-color-scheme: dark)');
+  if(mq.addEventListener){mq.addEventListener('change',readTheme);}
+}
+
+/* ---------- helpers ---------- */
+function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
+function dist(a,b){return Math.hypot(a.x-b.x,a.y-b.y);}
+function fmt(s){s=Math.floor(s);return Math.floor(s/60)+':'+String(s%60).padStart(2,'0');}
+function setFont(size,weight){ctx.font=(weight||500)+' '+size+'px Oswald,"Arial Narrow",Impact,sans-serif';}
+function text(s,x,y,size,color,align,weight,spacing){
+  setFont(size,weight);ctx.fillStyle=color;ctx.textAlign=align||'left';ctx.textBaseline='middle';
+  if('letterSpacing' in ctx){ctx.letterSpacing=(spacing||0)+'px';}
+  ctx.fillText(s,x,y);
+}
+function line(x1,y1,x2,y2){ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();}
+
+/* ---------- game state ---------- */
+var G={screen:'intro',stage:0,score:0,stageMistakes:0,totalMistakes:0,lives:3,stageT:0,totalT:0,shake:0};
+var S1=null,S2=null,S3=null;
+var inputs={pull:false,l:false,r:false};
+var parts=[];
+var time=0,last=performance.now();
+
+var hintEl=$('hint');
+function hint(s){hintEl.textContent=s;}
+var toastEl=$('toast'),toastTimer=0;
+function toast(s){
+  toastEl.textContent=s;toastEl.classList.add('show');
+  clearTimeout(toastTimer);toastTimer=setTimeout(function(){toastEl.classList.remove('show');},1800);
+}
+function spark(x,y,n,col){
+  if(RM){n=Math.min(n,4);}
+  for(var i=0;i<n;i++){
+    var a=Math.random()*TAU,s=60+Math.random()*180;
+    parts.push({x:x,y:y,vx:Math.cos(a)*s,vy:Math.sin(a)*s-40,l:0.5+Math.random()*0.5,t:0,col:col});
+  }
+}
+function shake(v){if(!RM){G.shake=Math.max(G.shake,v);}}
+
+/* ---------- HUD, steps, controls ---------- */
+var hudStage=$('hudStage'),hudMist=$('hudMist'),hudScore=$('hudScore'),hudTime=$('hudTime');
+var bolts=Array.prototype.slice.call(document.querySelectorAll('.bolt'));
+function hud(){
+  hudStage.textContent=Math.max(1,G.stage)+' / 3';
+  hudMist.textContent=String(G.totalMistakes+G.stageMistakes);
+  hudScore.textContent=G.score.toLocaleString('ru-RU');
+  hudTime.textContent=fmt(G.totalT+G.stageT);
+  bolts.forEach(function(b,i){b.classList.toggle('lost',i>=G.lives);});
+}
+var stepEls=Array.prototype.slice.call(document.querySelectorAll('.step'));
+function updateSteps(){
+  stepEls.forEach(function(el,i){
+    var n=i+1;
+    el.setAttribute('data-s',G.stage===0?(n===1?'now':'todo'):(n<G.stage?'done':(n===G.stage?'now':'todo')));
+  });
+}
+var ctl=$('controls'),bPull=$('btnPull'),bL=$('btnL'),bR=$('btnR'),bPin=$('btnPin');
+function setControls(){
+  var play=G.screen==='play';
+  bPull.hidden=!(play&&G.stage===2);
+  var lift=play&&G.stage===3&&S3&&S3.phase==='lift';
+  bL.hidden=!lift;bR.hidden=!lift;
+  bPin.hidden=!(play&&G.stage===3&&S3&&S3.phase==='close');
+  ctl.hidden=bPull.hidden&&bL.hidden&&bR.hidden&&bPin.hidden;
+}
+function holdBtn(btn,key){
+  btn.addEventListener('pointerdown',function(e){
+    e.preventDefault();
+    try{btn.setPointerCapture(e.pointerId);}catch(_){}
+    inputs[key]=true;btn.classList.add('on');
+  });
+  function up(){inputs[key]=false;btn.classList.remove('on');}
+  btn.addEventListener('pointerup',up);
+  btn.addEventListener('pointercancel',up);
+  btn.addEventListener('lostpointercapture',up);
+}
+holdBtn(bPull,'pull');holdBtn(bL,'l');holdBtn(bR,'r');
+bPin.addEventListener('pointerdown',function(e){e.preventDefault();pinPress();});
+bPin.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();pinPress();}});
+
+window.addEventListener('keydown',function(e){
+  if(e.repeat||G.screen!=='play'){return;}
+  var k=e.code;
+  if(k==='Space'){
+    e.preventDefault();
+    if(G.stage===2){inputs.pull=true;bPull.classList.add('on');}
+    if(G.stage===3&&S3&&S3.phase==='close'){pinPress();}
+  }
+  if(k==='KeyA'||k==='ArrowLeft'){inputs.l=true;bL.classList.add('on');e.preventDefault();}
+  if(k==='KeyL'||k==='ArrowRight'){inputs.r=true;bR.classList.add('on');e.preventDefault();}
+});
+window.addEventListener('keyup',function(e){
+  var k=e.code;
+  if(k==='Space'){inputs.pull=false;bPull.classList.remove('on');}
+  if(k==='KeyA'||k==='ArrowLeft'){inputs.l=false;bL.classList.remove('on');}
+  if(k==='KeyL'||k==='ArrowRight'){inputs.r=false;bR.classList.remove('on');}
+});
+window.addEventListener('blur',function(){
+  inputs.pull=inputs.l=inputs.r=false;
+  [bPull,bL,bR].forEach(function(b){b.classList.remove('on');});
+});
+
+/* ---------- overlay ---------- */
+var ovAction=null;
+function showOv(o){
+  $('ovKicker').textContent=o.kicker||'';
+  $('ovTitle').textContent=o.title;
+  $('ovText').textContent=o.text||'';
+  var m=$('ovMeta');m.textContent=o.meta||'';m.hidden=!o.meta;
+  var b=$('ovBtn');b.textContent=o.btn;ovAction=o.action;
+  $('ov').hidden=false;
+  try{b.focus({preventScroll:true});}catch(_){}
+  setControls();
+}
+$('ovBtn').addEventListener('click',function(){
+  $('ov').hidden=true;
+  var a=ovAction;ovAction=null;
+  if(document.activeElement&&document.activeElement.blur){document.activeElement.blur();}
+  if(a){a();}
+});
+
+var STAGES=[
+  {name:'Сборка на земле',text:'Секции арки лежат на складе. Перетащите каждую на стапель, на место с такой же маркой. Когда половинка сложена, заклепайте три стыка касанием. Таких половинок две.'},
+  {name:'Перевод в вертикаль',text:'Половинка лежит плашмя, поэтому в профиль она почти не видна. Тяните лебёдку, чтобы поставить её на ребро. Держите натяжение троса в зелёной зоне: от рывка и перегруза трос не выдержит.'},
+  {name:'Подъём мачтами',text:'Две мачты идут по рельсам и тросами поднимают половинки к ключу арки. Держите их на одном уровне, пока ветер сбивает одну из сторон. Когда половинки сойдутся, вставьте замковый штифт в нужный момент.'}
+];
+
+/* ---------- stage control ---------- */
+function startStage(n){
+  G.stage=n;G.stageMistakes=0;G.lives=3;G.stageT=0;G.screen='play';
+  inputs.pull=inputs.l=inputs.r=false;
+  parts.length=0;
+  if(n===1){initS1();}
+  if(n===2){initS2();}
+  if(n===3){initS3();}
+  updateSteps();setControls();hud();
+}
+function mistake(msg,costLife){
+  G.stageMistakes++;shake(0.5);
+  if(msg){toast(msg);}
+  if(costLife){
+    G.lives--;
+    if(G.lives<=0){fail();}
+  }
+}
+function fail(){
+  G.screen='fail';inputs.pull=inputs.l=inputs.r=false;
+  showOv({
+    kicker:'Этап '+G.stage+' · авария',
+    title:'Конструкция не выдержала',
+    text:G.stage===2?'Трос лопнул от перегруза. Рывки не нужны: подтягивайте плавно и отпускайте вовремя.':'Половинки перекосило, и тросы не выдержали. Следите за балансом: тяните отстающую сторону.',
+    btn:'Повторить этап',
+    action:function(){startStage(G.stage);}
+  });
+}
+function finishStage(){
+  var kk=[4,10,6][G.stage-1];
+  var bonus=Math.max(0,Math.round(500-G.stageT*kk));
+  var pts=Math.max(200,1000+bonus-150*G.stageMistakes);
+  var meta='Время '+fmt(G.stageT)+' · Ошибки '+G.stageMistakes+' · +'+pts.toLocaleString('ru-RU')+' очков';
+  G.score+=pts;G.totalMistakes+=G.stageMistakes;G.totalT+=G.stageT;
+  G.stageMistakes=0;G.stageT=0;G.screen='between';
+  inputs.pull=inputs.l=inputs.r=false;
+  var n=G.stage;
+  if(n<3){
+    showOv({
+      kicker:'Этап '+n+' пройден',
+      title:'Этап '+(n+1)+'. '+STAGES[n].name,
+      text:STAGES[n].text,
+      meta:meta,
+      btn:'Начать этап '+(n+1),
+      action:function(){startStage(n+1);}
+    });
+  }else{
+    var stars=G.totalMistakes<=2?3:(G.totalMistakes<=5?2:1);
+    showOv({
+      kicker:'Арка замкнута · '+new Array(stars+1).join('★')+new Array(4-stars).join('☆'),
+      title:'Арка стоит',
+      text:'Так и строят по методу Шухова: крупные части собирают на земле и поднимают уже готовыми. Не нужны огромные леса, а рабочим и материалам не надо подниматься на высоту. Сегодня это называют укрупнительной сборкой, и она применяется во всём мире.',
+      meta:'Очки '+G.score.toLocaleString('ru-RU')+' · Ошибки '+G.totalMistakes+' · Время '+fmt(G.totalT)+'  ('+meta+')',
+      btn:'Собрать заново',
+      action:function(){G.score=0;G.totalMistakes=0;G.totalT=0;startStage(1);}
+    });
+  }
+  hud();
+}
+
+/* ---------- drawing primitives ---------- */
+function truss(ax,ay,bx,by,h,panels,o){
+  var dx=bx-ax,dy=by-ay,L=Math.hypot(dx,dy)||1,nx=-dy/L*h,ny=dx/L*h;
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(ax+nx,ay+ny);ctx.lineTo(bx+nx,by+ny);ctx.lineTo(bx-nx,by-ny);ctx.lineTo(ax-nx,ay-ny);ctx.closePath();
+  if(o.fill){ctx.globalAlpha=(o.fa==null?0.3:o.fa);ctx.fillStyle=o.fill;ctx.fill();ctx.globalAlpha=1;}
+  ctx.lineWidth=o.lw||2;ctx.strokeStyle=o.stroke;
+  if(o.dash){ctx.setLineDash(o.dash);}
+  ctx.stroke();
+  ctx.beginPath();
+  for(var i=0;i<=panels;i++){
+    var t=i/panels,px=ax+dx*t,py=ay+dy*t,s=(i%2)?1:-1;
+    if(i===0){ctx.moveTo(px+s*nx,py+s*ny);}else{ctx.lineTo(px+s*nx,py+s*ny);}
+  }
+  ctx.lineWidth=(o.lw||2)*0.6;ctx.stroke();
+  ctx.restore();
+}
+function drawBackground(){
+  ctx.fillStyle=C.panel;ctx.fillRect(0,0,W,H);
+  ctx.save();ctx.globalAlpha=0.12;ctx.strokeStyle=C.line;ctx.lineWidth=1;
+  ctx.beginPath();
+  for(var x=0;x<=W;x+=40){ctx.moveTo(x,0);ctx.lineTo(x,H);}
+  for(var y=0;y<=H;y+=40){ctx.moveTo(0,y);ctx.lineTo(W,y);}
+  ctx.stroke();ctx.restore();
+}
+function drawParts(dt){
+  for(var i=parts.length-1;i>=0;i--){
+    var p=parts[i];p.t+=dt;
+    if(p.t>=p.l){parts.splice(i,1);continue;}
+    p.vy+=300*dt;p.x+=p.vx*dt;p.y+=p.vy*dt;
+  }
+}
+function paintParts(){
+  parts.forEach(function(p){
+    ctx.globalAlpha=1-p.t/p.l;ctx.fillStyle=C[p.col]||C.warn;ctx.fillRect(p.x-2,p.y-2,4,4);
+  });
+  ctx.globalAlpha=1;
+}
+function barH(x,y,w,h,v,col,label,align){
+  ctx.fillStyle=C.paper;ctx.fillRect(x,y,w,h);
+  ctx.fillStyle=col;ctx.fillRect(x,y,w*clamp(v,0,1),h);
+  ctx.strokeStyle=C.ink;ctx.lineWidth=2;ctx.strokeRect(x,y,w,h);
+  if(label){text(label,align==='right'?x+w:x,y-13,17,C.muted,align||'left',500,1.5);}
+}
+
+/* ================= STAGE 1: ground assembly ================= */
+var JIG={x0:110,y0:335,len:780,bu:110,gy:400};
+function jig(u){return {x:JIG.x0+u*JIG.len,y:JIG.y0-JIG.bu*Math.sin(Math.PI*u)};}
+var LETTERS=['А','Б'];
+function shuffle(a){
+  for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=a[i];a[i]=a[j];a[j]=t;}
+  return a;
+}
+function initS1(){
+  S1={half:0,phase:'place',slots:[],pieces:[],joints:[false,false,false],doneT:0};
+  buildHalf(0);
+  hint('Перетащите секцию на стапель, на место с такой же маркой.');
+}
+function buildHalf(h){
+  S1.half=h;S1.slots=[];S1.pieces=[];S1.phase='place';S1.joints=[false,false,false];S1.doneT=0;
+  var lens=[],i;
+  for(i=0;i<4;i++){
+    var A=jig(i/4),B=jig((i+1)/4);
+    S1.slots.push({i:i,A:A,B:B,mid:{x:(A.x+B.x)/2,y:(A.y+B.y)/2},mark:LETTERS[h]+(i+1),filled:false});
+    lens.push(dist(A,B));
+  }
+  var order=[0,1,2,3];
+  do{shuffle(order);}while(order.join('')==='0123');
+  var gap=24,total=gap*3;
+  order.forEach(function(k){total+=lens[k];});
+  var x=(W-total)/2;
+  order.forEach(function(k){
+    var L=lens[k];
+    S1.pieces.push({idx:k,mark:LETTERS[h]+(k+1),len:L,hx:x+L/2,hy:545,x:x+L/2,y:545,placed:false,drag:false,ox:0,oy:0,flash:0});
+    x+=L+gap;
+  });
+}
+var drag=null;
+function wpos(e){
+  var r=cv.getBoundingClientRect();
+  return {x:(e.clientX-r.left)/r.width*W,y:(e.clientY-r.top)/r.height*H};
+}
+cv.addEventListener('pointerdown',function(e){
+  if(G.screen!=='play'||G.stage!==1||!S1){return;}
+  var p=wpos(e),i;
+  if(S1.phase==='place'){
+    for(i=S1.pieces.length-1;i>=0;i--){
+      var pc=S1.pieces[i];
+      if(pc.placed){continue;}
+      if(Math.abs(p.x-pc.x)<pc.len/2+8&&Math.abs(p.y-pc.y)<42){
+        drag=pc;pc.drag=true;pc.ox=p.x-pc.x;pc.oy=p.y-pc.y;
+        S1.pieces.splice(i,1);S1.pieces.push(pc);
+        try{cv.setPointerCapture(e.pointerId);}catch(_){}
+        e.preventDefault();break;
+      }
+    }
+  }else if(S1.phase==='rivet'){
+    for(var j=0;j<3;j++){
+      if(S1.joints[j]){continue;}
+      var q=jig((j+1)/4);
+      if(Math.hypot(p.x-q.x,p.y-q.y)<64){
+        S1.joints[j]=true;spark(q.x,q.y,18,'warn');shake(0.15);
+        var n=S1.joints.filter(Boolean).length;
+        if(n===3){
+          S1.phase='done';S1.doneT=0;
+          spark(W/2,JIG.y0-JIG.bu,40,'ok');
+          hint('Половинка '+(S1.half+1)+' собрана.');
+        }else{
+          hint('Заклёпано стыков: '+n+' из 3.');
+        }
+        break;
+      }
+    }
+  }
+});
+cv.addEventListener('pointermove',function(e){
+  if(!drag){return;}
+  var p=wpos(e);
+  drag.x=clamp(p.x-drag.ox,60,W-60);
+  drag.y=clamp(p.y-drag.oy,60,H-30);
+});
+function drop(){
+  if(!drag){return;}
+  var pc=drag;drag=null;pc.drag=false;
+  var best=null,bd=1e9;
+  S1.slots.forEach(function(s){
+    if(s.filled){return;}
+    var d=Math.hypot(pc.x-s.mid.x,pc.y-s.mid.y);
+    if(d<bd){bd=d;best=s;}
+  });
+  if(best&&bd<100){
+    if(best.i===pc.idx){
+      pc.placed=true;best.filled=true;pc.flash=1;
+      spark(best.mid.x,best.mid.y,16,'ok');
+      var left=S1.slots.filter(function(s){return !s.filled;}).length;
+      if(left===0){
+        S1.phase='rivet';
+        hint('Заклепайте стыки: коснитесь светящихся точек.');
+      }else{
+        hint('Верно. Осталось секций: '+left+'.');
+      }
+    }else{
+      G.stageMistakes++;shake(0.4);
+      toast('Секция '+pc.mark+' не для места '+best.mark);
+      hint('Сверьте марки: на секции и на месте они должны совпасть.');
+    }
+  }
+}
+cv.addEventListener('pointerup',drop);
+cv.addEventListener('pointercancel',drop);
+
+function updateS1(dt){
+  S1.pieces.forEach(function(pc){
+    if(pc.drag||pc.placed){return;}
+    var k=Math.min(1,dt*12);
+    pc.x+=(pc.hx-pc.x)*k;pc.y+=(pc.hy-pc.y)*k;
+  });
+  S1.pieces.forEach(function(pc){if(pc.flash>0){pc.flash=Math.max(0,pc.flash-dt*1.6);}});
+  if(S1.phase==='done'){
+    S1.doneT+=dt;
+    if(S1.doneT>1.1){
+      if(S1.half===0){
+        buildHalf(1);
+        toast('Половинка 1 готова. Теперь вторая');
+        hint('Перетащите секции второй половинки на места Б1 – Б4.');
+      }else{
+        finishStage();
+      }
+    }
+  }
+}
+function drawPlate(x,y,s,col){
+  setFont(22,600);
+  var w=ctx.measureText(s).width+16;
+  ctx.fillStyle=C.paper;ctx.fillRect(x-w/2,y-14,w,28);
+  ctx.strokeStyle=col||C.ink;ctx.lineWidth=2;ctx.strokeRect(x-w/2,y-14,w,28);
+  text(s,x,y+1,22,col||C.ink,'center',600,1);
+}
+function drawS1(){
+  var i;
+  /* ground and trestles */
+  ctx.fillStyle=C.ground;ctx.fillRect(0,JIG.gy,W,40);
+  ctx.strokeStyle=C.ink;ctx.lineWidth=3;line(0,JIG.gy,W,JIG.gy);
+  ctx.lineWidth=2;
+  [0,0.5,1].forEach(function(u){
+    var p=jig(u);
+    line(p.x-12,p.y+24,p.x-12,JIG.gy);line(p.x+12,p.y+24,p.x+12,JIG.gy);
+    line(p.x-12,p.y+24,p.x+12,JIG.gy);line(p.x+12,p.y+24,p.x-12,JIG.gy);
+    line(p.x-22,p.y+24,p.x+22,p.y+24);
+  });
+  /* dimension line */
+  ctx.strokeStyle=C.muted;ctx.lineWidth=1.5;
+  var yd=150;
+  line(JIG.x0,yd-12,JIG.x0,yd+12);line(JIG.x0+JIG.len,yd-12,JIG.x0+JIG.len,yd+12);line(JIG.x0,yd,JIG.x0+JIG.len,yd);
+  text('ПОЛУАРКА '+(S1.half+1)+' ИЗ 2 · СБОРКА ЛЕЖА, НА ЗЕМЛЕ',W/2,yd-26,22,C.ink,'center',600,2);
+  text('ШАРНИР',JIG.x0,JIG.y0+60,16,C.muted,'center',500,1.5);
+  text('КЛЮЧ',JIG.x0+JIG.len,JIG.y0+60,16,C.muted,'center',500,1.5);
+  /* slots */
+  var dragNear=null;
+  if(drag){
+    var bd=1e9;
+    S1.slots.forEach(function(s){
+      if(s.filled){return;}
+      var d=Math.hypot(drag.x-s.mid.x,drag.y-s.mid.y);
+      if(d<bd){bd=d;dragNear=s;}
+    });
+    if(bd>=100){dragNear=null;}
+  }
+  S1.slots.forEach(function(s){
+    if(s.filled){return;}
+    var hot=(dragNear===s);
+    truss(s.A.x,s.A.y,s.B.x,s.B.y,20,4,{stroke:hot?C.accent:C.muted,lw:hot?3:2,dash:[9,7]});
+    drawPlate(s.mid.x,s.mid.y-62,s.mark,hot?C.accent:C.muted);
+  });
+  /* placed pieces */
+  S1.pieces.forEach(function(pc){
+    if(!pc.placed){return;}
+    var s=S1.slots[pc.idx];
+    truss(s.A.x,s.A.y,s.B.x,s.B.y,20,4,{fill:C.line,fa:0.3,stroke:C.ink,lw:2.5});
+    if(pc.flash>0){
+      ctx.save();ctx.globalAlpha=pc.flash;
+      truss(s.A.x,s.A.y,s.B.x,s.B.y,20,4,{stroke:C.ok,lw:5,noop:1});
+      ctx.restore();
+    }
+    drawPlate(s.mid.x,s.mid.y,pc.mark,C.ink);
+  });
+  /* joint rivets */
+  for(i=0;i<5;i++){
+    var jp=jig(i/4);
+    ctx.fillStyle=C.ink;ctx.beginPath();ctx.arc(jp.x,jp.y,5,0,TAU);ctx.fill();
+  }
+  if(S1.phase==='rivet'){
+    for(i=0;i<3;i++){
+      var q=jig((i+1)/4);
+      if(S1.joints[i]){
+        ctx.fillStyle=C.accent;ctx.beginPath();ctx.arc(q.x,q.y,12,0,TAU);ctx.fill();
+      }else{
+        var pulse=0.5+0.5*Math.sin(time*6+i);
+        ctx.strokeStyle=C.accent;ctx.lineWidth=3;
+        ctx.beginPath();ctx.arc(q.x,q.y,16+pulse*8,0,TAU);ctx.stroke();
+        ctx.fillStyle=C.warn;ctx.beginPath();ctx.arc(q.x,q.y,8,0,TAU);ctx.fill();
+      }
+    }
+  }else if(S1.phase==='done'){
+    for(i=1;i<4;i++){
+      var d=jig(i/4);
+      ctx.fillStyle=C.accent;ctx.beginPath();ctx.arc(d.x,d.y,12,0,TAU);ctx.fill();
+    }
+  }
+  /* yard */
+  ctx.fillStyle=C.paper;ctx.fillRect(24,452,W-48,172);
+  ctx.save();ctx.setLineDash([10,8]);ctx.strokeStyle=C.muted;ctx.lineWidth=2;ctx.strokeRect(24,452,W-48,172);ctx.restore();
+  text('СКЛАД · ВОЗЬМИТЕ СЕКЦИЮ И НЕСИТЕ НА СТАПЕЛЬ',44,476,18,C.muted,'left',500,2);
+  /* pile pieces */
+  S1.pieces.forEach(function(pc){
+    if(pc.placed||pc.drag){return;}
+    truss(pc.x-pc.len/2,pc.y,pc.x+pc.len/2,pc.y,20,4,{fill:C.line,fa:0.3,stroke:C.ink,lw:2.5});
+    drawPlate(pc.x,pc.y,pc.mark,C.ink);
+  });
+  if(drag){
+    var d2=drag;
+    ctx.save();ctx.globalAlpha=0.25;
+    truss(d2.x-d2.len/2+8,d2.y+12,d2.x+d2.len/2+8,d2.y+12,20,4,{fill:C.ink,fa:1,stroke:C.ink,lw:1,noBrace:1});
+    ctx.restore();
+    truss(d2.x-d2.len/2,d2.y,d2.x+d2.len/2,d2.y,20,4,{fill:C.line,fa:0.45,stroke:C.accent,lw:3});
+    drawPlate(d2.x,d2.y,d2.mark,C.accent);
+  }
+}
+
+/* ================= shared arch geometry (stages 2 and 3) ================= */
+var SC={HX:220,HY:500,CH:389,TH:-0.7672,BU:56,GY:545};
+function archPts(theta,k,mirror){
+  var N=8,pts=[];
+  var dx=Math.cos(theta),dy=Math.sin(theta),nx=Math.sin(theta),ny=-Math.cos(theta);
+  for(var i=0;i<=N;i++){
+    var u=i/N,v=SC.BU*Math.sin(Math.PI*u)*k;
+    var x=SC.HX+dx*SC.CH*u+nx*v,y=SC.HY+dy*SC.CH*u+ny*v;
+    pts.push({x:mirror?W-x:x,y:y});
+  }
+  return pts;
+}
+function drawArch(pts,k,col){
+  var h=12*Math.max(k,0.16);
+  for(var i=0;i<pts.length-1;i++){
+    truss(pts[i].x,pts[i].y,pts[i+1].x,pts[i+1].y,h,2,{fill:C.line,fa:0.3,stroke:col||C.ink,lw:2.2});
+  }
+  ctx.fillStyle=col||C.ink;
+  pts.forEach(function(p){ctx.beginPath();ctx.arc(p.x,p.y,2.8,0,TAU);ctx.fill();});
+}
+function drawGhost(){
+  ctx.save();
+  ctx.setLineDash([9,7]);ctx.strokeStyle=C.accent;ctx.globalAlpha=0.7;ctx.lineWidth=2;
+  [false,true].forEach(function(m){
+    var pts=archPts(SC.TH,1,m);
+    ctx.beginPath();pts.forEach(function(p,i){if(i===0){ctx.moveTo(p.x,p.y);}else{ctx.lineTo(p.x,p.y);}});ctx.stroke();
+  });
+  ctx.restore();
+}
+function drawGround(){
+  ctx.fillStyle=C.ground;ctx.fillRect(0,SC.GY,W,H-SC.GY);
+  ctx.save();ctx.globalAlpha=0.25;ctx.strokeStyle=C.line;ctx.lineWidth=2;
+  ctx.beginPath();
+  for(var x=-100;x<W;x+=26){ctx.moveTo(x,H);ctx.lineTo(x+100,SC.GY);}
+  ctx.stroke();ctx.restore();
+  ctx.strokeStyle=C.ink;ctx.lineWidth=3;line(0,SC.GY,W,SC.GY);
+  /* piers and hinges */
+  [SC.HX,W-SC.HX].forEach(function(x){
+    ctx.fillStyle=C.paper;ctx.fillRect(x-46,SC.HY,92,SC.GY-SC.HY);
+    ctx.lineWidth=2.5;ctx.strokeRect(x-46,SC.HY,92,SC.GY-SC.HY);
+    ctx.beginPath();ctx.arc(x,SC.HY,9,0,TAU);ctx.fillStyle=C.paper;ctx.fill();ctx.stroke();
+  });
+}
+
+/* ================= STAGE 2: raising to vertical ================= */
+function initS2(){
+  S2={half:0,q:0,T:0,over:0,done:false,doneT:0,rot:0};
+  hint('Удерживайте кнопку и отпускайте: натяжение должно оставаться в зелёной зоне.');
+}
+function updateS2(dt){
+  if(S2.done){
+    S2.doneT+=dt;
+    if(S2.doneT>1.2){finishStage();}
+    return;
+  }
+  if(inputs.pull){S2.T=Math.min(1.05,S2.T+1.5*dt);}else{S2.T=Math.max(0,S2.T-1.9*dt);}
+  var inBand=S2.T>0.38&&S2.T<0.78;
+  if(inBand){S2.q+=0.2*dt;S2.rot+=dt*5;}
+  else if(S2.T<=0.38){S2.q=Math.max(0,S2.q-0.015*dt);}
+  if(S2.T>0.9){S2.over+=0.9*dt;}else{S2.over=Math.max(0,S2.over-0.7*dt);}
+  if(S2.over>=1){
+    S2.over=0;S2.q=Math.max(0,S2.q-0.12);S2.T=0.3;
+    mistake('Трос дёрнуло: перегруз',true);
+    if(G.screen!=='play'){return;}
+  }
+  if(S2.q>=1){
+    S2.q=1;
+    spark(S2.half===0?SC.HX+200:W-SC.HX-200,SC.HY-40,30,'ok');
+    if(S2.half===0){
+      S2.half=1;S2.q=0;S2.T=0;S2.over=0;
+      toast('Левая половинка стоит на ребре');
+      hint('Теперь поставьте правую половинку так же.');
+    }else{
+      S2.done=true;S2.doneT=0;
+      toast('Обе половинки стоят вертикально');
+    }
+  }
+}
+function drawS2(){
+  drawGround();
+  drawGhost();
+  var kL=S2.half===0?S2.q:1,kR=S2.half===1?S2.q:(S2.done?1:0);
+  if(S2.done){kL=1;kR=1;}
+  var pl=archPts(0,Math.max(kL,0.06),false),pr=archPts(0,Math.max(kR,0.06),true);
+  drawArch(pr,Math.max(kR,0.06));
+  drawArch(pl,Math.max(kL,0.06));
+  /* winch and cable */
+  var active=S2.half===0?pl:pr,tip=active[active.length-1];
+  var wx=500,wy=518;
+  var cableCol=S2.T>0.9?C.accent:(S2.T>0.78?C.warn:C.ink);
+  ctx.strokeStyle=cableCol;ctx.lineWidth=3;
+  line(wx,wy,tip.x,tip.y);
+  ctx.fillStyle=C.paper;ctx.strokeStyle=C.ink;ctx.lineWidth=3;
+  ctx.beginPath();ctx.arc(wx,wy,24,0,TAU);ctx.fill();ctx.stroke();
+  ctx.lineWidth=2.5;
+  for(var i=0;i<3;i++){
+    var a=S2.rot+i*TAU/3;
+    line(wx,wy,wx+Math.cos(a)*24,wy+Math.sin(a)*24);
+  }
+  ctx.fillStyle=C.ink;ctx.beginPath();ctx.arc(wx,wy,5,0,TAU);ctx.fill();
+  text('ЛЕБЁДКА',wx,wy+50,16,C.muted,'center',500,1.5);
+  /* labels and progress */
+  text(S2.half===0?'ЛЕВАЯ ПОЛУАРКА · СТАВИМ НА РЕБРО':'ПРАВАЯ ПОЛУАРКА · СТАВИМ НА РЕБРО',40,38,22,C.ink,'left',600,2);
+  barH(40,78,300,18,S2.q,C.ok,'ПЛОСКОСТЬ ПОЛУАРКИ: ЛЕЖИТ → СТОИТ');
+  barH(40,126,300,10,S2.over,C.accent,'ПЕРЕГРУЗ ТРОСА');
+  /* tension gauge */
+  var gx=880,gy=90,gw=40,gh=320;
+  text('НАТЯЖЕНИЕ',gx+gw/2,gy-26,17,C.muted,'center',500,1.5);
+  ctx.fillStyle=C.paper;ctx.fillRect(gx,gy,gw,gh);
+  ctx.save();ctx.globalAlpha=0.4;
+  ctx.fillStyle=C.ok;ctx.fillRect(gx,gy+gh*(1-0.78),gw,gh*0.4);
+  ctx.fillStyle=C.accent;ctx.fillRect(gx,gy,gw,gh*(1-0.9));
+  ctx.restore();
+  ctx.strokeStyle=C.ink;ctx.lineWidth=2.5;ctx.strokeRect(gx,gy,gw,gh);
+  var my=gy+gh*(1-clamp(S2.T,0,1));
+  ctx.lineWidth=5;ctx.strokeStyle=C.ink;line(gx-12,my,gx+gw+12,my);
+  ctx.fillStyle=C.ink;ctx.beginPath();ctx.moveTo(gx-14,my);ctx.lineTo(gx-30,my-10);ctx.lineTo(gx-30,my+10);ctx.closePath();ctx.fill();
+  text('НОРМА',gx+gw/2,gy+gh*(1-0.58),15,C.ink,'center',600,1);
+}
+
+/* ================= STAGE 3: masts on rails ================= */
+function initS3(){
+  S3={pL:0,pR:0,phase:'lift',gust:null,gT:3,sway:0,mt:0,lock:0,doneT:0};
+  hint('Тяните обе мачты, чередуя кнопки: метка баланса должна остаться в зелёной зоне.');
+}
+function pinPress(){
+  if(G.screen!=='play'||G.stage!==3||!S3||S3.phase!=='close'||S3.lock>0){return;}
+  var m=0.5+0.5*Math.sin(S3.mt*2.4);
+  if(Math.abs(m-0.5)<=0.1){
+    S3.phase='done';S3.doneT=0;
+    spark(W/2,SC.HY-SC.CH*Math.sin(-SC.TH),50,'ok');
+    toast('Штифт вошёл: арка замкнута');
+    shake(0.3);setControls();
+    hint('Арка замкнута.');
+  }else{
+    G.stageMistakes++;S3.lock=0.7;shake(0.3);
+    toast('Штифт не вошёл: стык не совпал');
+  }
+}
+function updateS3(dt){
+  if(S3.phase==='done'){
+    S3.doneT+=dt;
+    if(S3.doneT>1.6){finishStage();}
+    return;
+  }
+  if(S3.phase==='close'){
+    S3.mt+=dt;
+    if(S3.lock>0){S3.lock=Math.max(0,S3.lock-dt);}
+    return;
+  }
+  S3.gT-=dt;
+  if(!S3.gust&&S3.gT<=0){
+    S3.gust={side:Math.random()<0.5?-1:1,t:0,dur:1.1+Math.random()*0.6,amp:0.11+Math.random()*0.05};
+    S3.gT=3+Math.random()*3;
+  }
+  var wl=0,wr=0;
+  if(S3.gust){
+    S3.gust.t+=dt;
+    var f=Math.sin(Math.PI*clamp(S3.gust.t/S3.gust.dur,0,1));
+    if(S3.gust.side<0){wl=S3.gust.amp*f;}else{wr=S3.gust.amp*f;}
+    if(S3.gust.t>=S3.gust.dur){S3.gust=null;}
+  }
+  S3.pL=clamp(S3.pL+((inputs.l?0.17:0)-0.03-wl)*dt,0,1);
+  S3.pR=clamp(S3.pR+((inputs.r?0.17:0)-0.03-wr)*dt,0,1);
+  var d=Math.abs(S3.pL-S3.pR);
+  if(d>0.07){S3.sway+=(d-0.07)*6*dt;}else{S3.sway=Math.max(0,S3.sway-0.35*dt);}
+  if(S3.sway>=1){
+    mistake('Перекос! Тросы перегружены',true);
+    if(G.screen!=='play'){return;}
+    S3.sway=0.3;S3.pL=Math.max(0,S3.pL-0.18);S3.pR=Math.max(0,S3.pR-0.18);
+  }
+  if(S3.pL>=0.985&&S3.pR>=0.985&&d<0.05){
+    S3.pL=1;S3.pR=1;S3.phase='close';S3.mt=0;S3.lock=0;
+    inputs.l=inputs.r=false;bL.classList.remove('on');bR.classList.remove('on');
+    setControls();
+    toast('Половинки сошлись в ключе');
+    hint('Нажмите «Вставить штифт», когда метка окажется в зелёной зоне.');
+  }
+}
+function mast(mx,tensionBad){
+  var top=95,base=532,wb=22,wt=9,n=9,i;
+  ctx.save();
+  ctx.strokeStyle=C.ink;ctx.lineWidth=2.5;
+  ctx.beginPath();ctx.moveTo(mx-wb,base);ctx.lineTo(mx-wt,top);ctx.moveTo(mx+wb,base);ctx.lineTo(mx+wt,top);ctx.stroke();
+  ctx.lineWidth=1.6;ctx.beginPath();
+  for(i=0;i<=n;i++){
+    var t=i/n,y=base+(top-base)*t,w=wb+(wt-wb)*t;
+    ctx.moveTo(mx-w,y);ctx.lineTo(mx+w,y);
+  }
+  for(i=0;i<n;i++){
+    var t0=i/n,t1=(i+1)/n;
+    var y0=base+(top-base)*t0,w0=wb+(wt-wb)*t0,y1=base+(top-base)*t1,w1=wb+(wt-wb)*t1;
+    if(i%2){ctx.moveTo(mx-w0,y0);ctx.lineTo(mx+w1,y1);}else{ctx.moveTo(mx+w0,y0);ctx.lineTo(mx-w1,y1);}
+  }
+  ctx.stroke();
+  ctx.lineWidth=2.5;ctx.fillStyle=C.paper;
+  ctx.beginPath();ctx.arc(mx,top-6,8,0,TAU);ctx.fill();ctx.stroke();
+  [-16,16].forEach(function(o){ctx.beginPath();ctx.arc(mx+o,base+7,6,0,TAU);ctx.fill();ctx.stroke();});
+  ctx.restore();
+  return {x:mx,y:top-6};
+}
+function drawScene3(pL,pR,wobL,wobR,sway,ghost){
+  drawGround();
+  /* rails */
+  ctx.strokeStyle=C.ink;ctx.lineWidth=2;
+  for(var x=300;x<=700;x+=20){line(x,SC.GY-4,x,SC.GY+6);}
+  ctx.lineWidth=4;line(290,SC.GY-1,710,SC.GY-1);
+  if(ghost){drawGhost();}
+  var tL=SC.TH*pL+wobL,tR=SC.TH*pR+wobR;
+  var al=archPts(tL,1,false),ar=archPts(tR,1,true);
+  var mL=330+140*pL,mR=670-140*pR;
+  var aL=mast(mL),aR=mast(mR);
+  var bad=sway>0.25;
+  ctx.strokeStyle=bad?C.accent:C.ink;ctx.lineWidth=bad?3.5:2.5;
+  var tipL=al[al.length-1],tipR=ar[ar.length-1];
+  line(aL.x,aL.y,tipL.x,tipL.y);line(aR.x,aR.y,tipR.x,tipR.y);
+  drawArch(ar,1);drawArch(al,1);
+  /* crown joint */
+  var cy=SC.HY+SC.CH*Math.sin(SC.TH);
+  ctx.strokeStyle=C.accent;ctx.lineWidth=3;
+  ctx.beginPath();ctx.arc(W/2,cy,14,0,TAU);ctx.stroke();
+}
+function drawS3(){
+  var wobAmp=Math.min(1,S3.sway*1.5+(S3.gust?0.5:0));
+  var wl=Math.sin(time*7)*0.014*wobAmp*(S3.gust&&S3.gust.side<0?1.6:1);
+  var wr=Math.sin(time*7+1.7)*0.014*wobAmp*(S3.gust&&S3.gust.side>0?1.6:1);
+  drawScene3(S3.pL,S3.pR,wl,wr,S3.sway,true);
+  var cy=SC.HY+SC.CH*Math.sin(SC.TH);
+  if(S3.phase==='done'){
+    ctx.fillStyle=C.accent;ctx.beginPath();ctx.arc(W/2,cy,11,0,TAU);ctx.fill();
+  }
+  /* HUD: progress bars and balance */
+  barH(40,40,240,14,S3.pL,C.ok,'ЛЕВАЯ ПОЛУАРКА');
+  barH(720,40,240,14,S3.pR,C.ok,'ПРАВАЯ ПОЛУАРКА','right');
+  var bx=340,bw=320,by=40,bh=14,mid=bx+bw/2,safe=0.07/0.3*(bw/2);
+  text('БАЛАНС',W/2,by-13,17,C.muted,'center',500,1.5);
+  ctx.fillStyle=C.paper;ctx.fillRect(bx,by,bw,bh);
+  ctx.save();ctx.globalAlpha=0.35;ctx.fillStyle=C.accent;ctx.fillRect(bx,by,bw,bh);ctx.fillStyle=C.ok;ctx.fillRect(mid-safe,by,safe*2,bh);ctx.restore();
+  ctx.strokeStyle=C.ink;ctx.lineWidth=2;ctx.strokeRect(bx,by,bw,bh);
+  var mk=mid+clamp((S3.pL-S3.pR)/0.3,-1,1)*(bw/2);
+  ctx.lineWidth=5;line(mk,by-5,mk,by+bh+5);
+  barH(bx,by+bh+8,bw,6,S3.sway,C.accent,'');
+  /* wind */
+  if(S3.gust){
+    var sx=S3.gust.side<0?150:850;
+    text('ПОРЫВ ВЕТРА',sx,150,20,C.warn,'center',600,2);
+    ctx.strokeStyle=C.warn;ctx.lineWidth=3;
+    for(var i=0;i<3;i++){
+      var xx=sx-60+((time*140+i*40)%120),yy=175+i*14;
+      line(xx,yy,xx+34,yy);
+    }
+  }
+  /* closing bar */
+  if(S3.phase==='close'){
+    ctx.fillStyle=C.paper;ctx.fillRect(260,566,480,60);
+    ctx.strokeStyle=C.ink;ctx.lineWidth=2.5;ctx.strokeRect(260,566,480,60);
+    text('ЗАМКОВЫЙ ШАРНИР · ШТИФТ НУЖНО ВСТАВИТЬ В ЗЕЛЁНОЙ ЗОНЕ',500,580,16,C.ink,'center',600,1.5);
+    var x0=290,w0=420,y0=594,h0=20;
+    ctx.fillStyle=C.panel;ctx.fillRect(x0,y0,w0,h0);
+    ctx.save();ctx.globalAlpha=0.55;ctx.fillStyle=C.ok;ctx.fillRect(x0+w0*0.4,y0,w0*0.2,h0);ctx.restore();
+    ctx.strokeStyle=C.ink;ctx.lineWidth=2;ctx.strokeRect(x0,y0,w0,h0);
+    var m=0.5+0.5*Math.sin(S3.mt*2.4);
+    ctx.strokeStyle=S3.lock>0?C.accent:C.ink;ctx.lineWidth=6;line(x0+w0*m,y0-6,x0+w0*m,y0+h0+6);
+  }
+}
+
+/* ---------- intro backdrop ---------- */
+function drawIntro(){
+  var p=0.55+0.45*Math.sin(time*0.55);
+  drawScene3(p,p,0,0,0,true);
+}
+
+/* ---------- main loop ---------- */
+var themeTick=0;
+function update(dt){
+  drawParts(dt);
+  G.shake=Math.max(0,G.shake-dt*1.6);
+  themeTick+=dt;if(themeTick>1){themeTick=0;readTheme();}
+  if(G.screen==='play'){
+    G.stageT+=dt;
+    if(G.stage===1&&S1){updateS1(dt);}
+    else if(G.stage===2&&S2){updateS2(dt);}
+    else if(G.stage===3&&S3){updateS3(dt);}
+    hud();
+  }
+}
+function draw(){
+  ctx.setTransform(scale,0,0,scale,0,0);
+  drawBackground();
+  ctx.save();
+  if(G.shake>0&&!RM){ctx.translate((Math.random()-0.5)*G.shake*12,(Math.random()-0.5)*G.shake*12);}
+  if(G.stage===0){drawIntro();}
+  else if(G.stage===1&&S1){drawS1();}
+  else if(G.stage===2&&S2){drawS2();}
+  else if(G.stage===3&&S3){drawS3();}
+  paintParts();
+  ctx.restore();
+}
+function frame(now){
+  var dt=Math.min(0.05,(now-last)/1000);last=now;time+=dt;
+  update(dt);draw();
+  requestAnimationFrame(frame);
+}
+
+/* ---------- start ---------- */
+updateSteps();hud();setControls();
+hint('Соберите арку так, как это придумал Шухов.');
+showOv({
+  kicker:'В. Г. Шухов · укрупнительная сборка',
+  title:'Соберите арку, как Шухов',
+  text:'Шухов одним из первых в мире понял, что крупные части высотной конструкции можно собрать заранее на земле. Тогда не нужны огромные леса, а рабочим и материалам не надо подниматься на высоту. Соберите две половинки арки, поставьте их вертикально и поднимите двумя мачтами на рельсах.',
+  meta:'3 этапа · около пяти минут',
+  btn:'Начать сборку',
+  action:function(){
+    $('ovTitle').textContent='';
+    showOv({
+      kicker:'Этап 1',
+      title:STAGES[0].name,
+      text:STAGES[0].text,
+      btn:'Приступить',
+      action:function(){startStage(1);}
+    });
+  }
+});
+requestAnimationFrame(frame);
+})();
+</script>
+
+</body></html>
